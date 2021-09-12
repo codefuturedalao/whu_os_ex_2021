@@ -22,7 +22,7 @@
 
 1. 下载virtualbox或vmware
 
-2. 下载32位ubuntu镜像文件
+2. 下载32位ubuntu镜像文件并安装
 
    * [14.06](https://mirrors.163.com/ubuntu-releases/14.04/ubuntu-14.04.6-desktop-i386.iso)
    * [16.06](https://mirrors.163.com/ubuntu-releases/16.04/ubuntu-16.04.6-desktop-i386.iso)
