@@ -204,3 +204,9 @@ apt产生依赖报错一般是是源的问题，新手很容易出现源的版�
 ![image-20210912111303132](_static/week1/image-20210912111303132.png)
 
 很简单，请检查romimage路径是否正确。
+
+### Q: bochs报错cpu directive malformed 
+
+![image-20210912114908328](_static/week1/image-20210912114908328.png)
+
+很有可能是因为在bochs-2.6.9的源码目录下直接运行了bochs，请到本书配套源码的目录下运行bochs，并修改好bochsrc，以及使用```-f```指定bochsrc的位置。
