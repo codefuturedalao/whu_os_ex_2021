@@ -1,4 +1,4 @@
-# OS_EX Totorial 
+# OS_EX Tutorial 
 
 ```{toctree}
 ---
