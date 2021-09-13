@@ -28,8 +28,7 @@
 ## 课程教材
 
 * Orange’s 一个操作系统的实现，于渊，电子工
-业出版社，2008年 – 获取形式：网络电子版、or 自己购买 from淘宝 or 
-Kindle
+业出版社，2008年 – 获取形式：Kindle
 	- 随书源码：[https://github.com/yyu/](https://github.com/yyu/osfs00)
 * 可参考的资料
 	- [Intel® 64 and IA-32 Architectures Software Developer Manuals, Intel Press](https://software.intel.com/content/www/us/en/develop/articles/intel-sdm.html) （阅读需要一定基础）
