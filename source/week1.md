@@ -180,7 +180,7 @@
 
 apt产生依赖报错一般是是源的问题，新手很容易出现源的版本和ubuntu版本不适配问题。检查步骤如下
 
-命令行输入```lsb_release -a"命令，查看codename（以ubuntu14.04为例）
+命令行输入```lsb_release -a```命令，查看codename（以ubuntu14.04为例）
 
 ![image-20210912105927574](_static/week1/image-20210912105927574.png)
 
