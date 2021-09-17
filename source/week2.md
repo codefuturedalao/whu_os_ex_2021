@@ -18,7 +18,7 @@
 
 ### 配置环境
 
-1. 运行命令```dd if=pmtest.bin of=a.img bs=512 count=1 conv=notrunc```将pmtest.bin写入a.img，然后启动bochs，查看结果，可以看到界面右侧出现红色p
+1. 运行命令```dd if=pmtest1.bin of=a.img bs=512 count=1 conv=notrunc```将pmtest1.bin写入a.img，然后启动bochs，查看结果，可以看到界面右侧出现红色p
 
    ![image-20210917145432463](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210917145432463.png)
 
@@ -30,7 +30,7 @@
 
    ![image-20210917145903441](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210917145903441.png)
 
-5. 启动bochs，可以看到如下界面，恭喜你，这个时候可以长舒一口气了。
+5. 启动bochs。
 
    ![image-20210917150004023](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210917150004023.png)
 
@@ -67,11 +67,11 @@
 
 现在休息一下，可以喝口水什么的。
 
-你可能发现由于我们不知道freedos把我们的程序加载到了哪里，所以对于在哪里打断点来进行调试对于我们来说非常棘手，这里推荐查看一下FAQ中的how to debug in freedos。
+你可能发现由于我们不知道freedos把程序加载到了哪里，所以在哪里打断点来进行调试对于我们来说非常棘手😔，这里推荐查看一下FAQ中的how to debug in freedos。
 
-现在假设你已经已经知道了如何调试，那么我们后面的任务无非就是在想要打断点的位置加上```xchg bx, bx```，然后启动bochs即可。
+现在假设你已经已经知道了如何调试，那么我们后面的任务无非就是在想要打断点的位置加上```xchg bx, bx```，然后启动bochs进行调试即可。
 
-实验的时候，我们需要改动pmtest中的代码，然后汇编、挂载pm.img、拷贝、取消挂载以及启动bochs，这几个重复且枯燥的动作让我心疲力竭，于是这里提供一个简单的脚本，可能可以节省一下我们的时间。
+实验的时候，我们需要改动pmtest中的代码，然后汇编、挂载pm.img、拷贝、取消挂载以及启动bochs，这几个重复且枯燥的动作让人心疲力竭，于是这里提供一个简单的脚本，可能可以节省一下我们的时间。
 
 ```shell
 #!/bin/sh
@@ -99,7 +99,7 @@ bochs
 
 上面代码的作用就是将当前文件夹下所有的汇编文件编译为com文件，然后写入pm.img，最后启动bochs。
 
-如果你愿意使用的话，请将新建一个build.sh文件，将上面代码拷贝进去，然后使用```sudo chmod +x build.sh```命令使build.sh可执行，之后每次修改完汇编文件，使用命令```./build.sh```即可启动bochs了。
+如果你愿意使用的话，请新建一个build.sh文件，将上面代码拷贝进去，然后使用```sudo chmod +x build.sh```命令使build.sh可执行，之后每次修改完汇编文件，使用命令```./build.sh```即可启动bochs了。
 
 ### 课后实验
 
