@@ -167,6 +167,7 @@ bochs
 1. 确保bochsrc中添加要求的三行内容，**并删去了之前的floppya : xxxx**。
 2. 确保bximage新建了pm.img
 3. 确保pm.img有写入权限
+4. 确保pm.img的owner和group是当前用户而非root，否则用chown和chgrp命令进行修改。
 
 ### Q: how to debug in freedos
 
@@ -198,4 +199,4 @@ bochs
 
 ### Q: bochs中键盘不响应
 
-A：等待或重新启动bochs。
+   等待或重新启动bochs。
