@@ -1,6 +1,4 @@
-## 汇编
-
-### IA-32 Manual summary (todo)
+## IA-32 Manual summary (todo)
 
 
 ```{toctree}
@@ -13,7 +11,7 @@ IA32_manual
 
 ```
 
-### NASM tutorial (doing)
+## NASM tutorial (doing)
 
 ```{toctree}
 ---
@@ -24,7 +22,7 @@ nasm_tutorial
 
 ```
 
-### Linux v0.11 source code reading (todo)
+## Linux v0.11 source code reading (todo)
 
 ```{toctree}
 ---
