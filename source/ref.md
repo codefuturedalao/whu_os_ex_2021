@@ -1,4 +1,4 @@
-## IA-32 Manual summary (todo)
+## IA-32 Manual summary (doing)
 
 
 ```{toctree}
@@ -31,6 +31,18 @@ maxdepth: 1
 
 
 Linuxv0.11_read
+
+```
+
+
+## Missing details (doing)
+
+```{toctree}
+---
+maxdepth: 1
+---
+
+missing_detail
 
 ```
 
