@@ -133,9 +133,33 @@ bochs
 
 #### 课后动手改2
 
-交给你们了，加油💪💪(ง •_•)ง
+实验代码已经提供了高特权级通过retf跳到低特权级，低特权级通过调用门跳回高特权级的代码，于是我们采用另一种方法，通过设置高特权级代码段为一致性代码段，从而实现低特权级到高特权级的跳转。（哪种方式都是可以的，只要实现不同特权级代码段跳转即可）
 
-看情况更新😉
+1. 定义dpl=3的数据段并定义段描述符和段选择符，同时初始化段描述符。
+
+   ![image-20210924111925899](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210924111925899.png)
+
+2. 定义ring3代码段描述符和段选择符，同时初始化段描述符
+
+3. 编写ring3代码段，实现输出字符串，并通过call指令跳转到ring0代码段
+
+   ![image-20210924110712138](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210924110712138.png)
+
+4. 定义ring0代码段描述符和选择符
+
+   需要在代码段中设置DA_CCO属性，表示为一致性代码段。
+
+   ![image-20210924111411154](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210924111411154.png)
+
+5. 编写ring0代码段，实现输出字符串
+
+   请注意，由于从ring3跳转到ring0一致性代码段不更改cpl，因此此时代码段相当于运行在特权级3下，向ds加载数据段选择符时，加载了指向dpl=3的数据段选择符。同时由于特权级的问题，也不能直接从改代码段通过```jmp SelectorCode16:0```跳到16位代码段，需要通过retf返回到ring3，之后通过给出的调用门进行返回。
+
+   ![image-20210924112709677](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210924112709677.png)
+
+6. 实验效果
+
+   ![image-20210924112003595](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210924112003595.png)
 
 ## 实验练习
 
