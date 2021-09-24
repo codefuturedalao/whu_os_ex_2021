@@ -145,7 +145,7 @@ bochs
 
    ![image-20210924110712138](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210924110712138.png)
 
-4. 定义ring0代码段描述符和选择符
+4. 定义ring0代码段描述符和选择符，同时初始化段描述符
 
    需要在代码段中设置DA_CCO属性，表示为一致性代码段。
 
