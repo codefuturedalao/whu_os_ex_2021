@@ -150,17 +150,29 @@ IA-32中的内存管理机制被分为两部分：分段和分页。**在保护�
 
 * 代码和数据段描述符（S位为1）
 
+  ![image-20210925154615181](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925154615181.png)
+
   ![image-20210921151102035](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210921151102035.png)
 
 * 系统描述符（S位为0）
 
   * 系统段描述符（指向系统段）
+
+    ![image-20210925154638553](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925154638553.png)
+
     * LDT段描述符
     * TSS描述符
+
   * 门描述符（包含指向代码段或TSS的选择符）
+
     * 调用门
+
+      ![image-20210925194355975](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925194355975.png)
+
     * 中断门
+
     * 陷阱门
+
     * 任务门
 
   ![image-20210921152527514](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210921152527514.png)
@@ -210,6 +222,175 @@ IA-64处理器共支持四种不同的分页方式：
 2. 有地址转换，但access rights不允许本次访问
 
 ## Protection
+
+### Limit Checking
+
+对于向上扩展的段，段界限指向了段中最后一个允许被访问的字节，数值上为段大小减一。
+
+对于向下扩展的段，段界限指向了段中最后一个不允许被访问的字节。
+
+### Type Checking
+
+处理器通常会在以下几种情况执行类型检查：
+
+1. 当段选择符加载进段寄存器
+   * CS寄存器只能加载代码段选择符
+   * 系统段和不可读代码段选择符不能被加载到DS、ES、FS和GS寄存器中
+   * 只有可写的数据段可以被加载到SS寄存器
+2. 当通过指令访问段时
+   * 不能写入可执行代码段
+   * 不能写入只读数据段
+   * 不能读不可读代码段
+3. 当指令操作数为段选择符时
+   * 远跳转的call和jmp指令只能访问一致性代码段、非一致性代码段、调用门、任务门和TSS。
+   * LLDT指令的选择符指向LDT段描述符
+   * LTR指令的选择符指向TSS描述符
+   * IDT的表项必须是中断、陷阱和任务门。
+4. 在特定的内部操作中
+   * 当call或jump通过调用门转移时，处理器自动检查指向的段描述符是代码段描述符
+   * 当call或jump通过任务门转移时，处理器自动检查任务门指向的段描述符为TSS
+   * 当call或jump直接通过TSS转移时，处理器自动检查指向的段描述符是TSS
+   * 当从嵌套任务中返回时，处理器检查目前TSS中指向的前一个任务的段描述符是TSS
+
+### Privilege Checking
+
+**特权检查发生在向段寄存器中加载段选择符时。**
+
+![image-20210925161655782](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925161655782.png)
+
+* CPL：当前任务或程序的特权级，被存储在CS寄存器和SS寄存器的最低两位。通常情况下，CPL等于代码段的DPL，处理器在转移到不同特权级的代码段下时，会改变CPL。**但是当转移到一致性代码段时，CPL不发生变化**，此时CPL和代码段的DPL可能会出现不一致的情况。
+* DPL：段或门的特权级，被存储在段或门描述符的DPL域中。当目前执行的代码尝试访问一个段或门时，段或门的DPL用来和CPL和选择符的RPL进行比较，确认程序是否具有权限访问。
+  * 数据段DPL：显示允许访问该段的最低特权级。
+  * 非一致性代码段（不使用调用门）：显示访问该段需要具有的特权级
+  * 调用门DPL：显示允许调用该门的最低特权级
+  * 一致性代码段和非一致性代码段通过门访问：显示允许访问该段的最高特权级。
+  * TSS DPL：显示允许访问该段的最低特权级
+* RPL：段选择符的最低两位，用来确保高特权级代码不会代替低特权级代码访问一个段，除非低特权级代码有权限来访问。主要和ARPL指令搭配使用。
+
+#### Accessing Data Segments
+
+在将数据段选择符加载到段寄存器之前，处理器会根据CPL，段选择符的RPL和数据段描述符的DPL进行比较，当DPL数值上都大于等于CPL和RPL时，允许加载，否则产生general-protection异常。
+
+![image-20210925164854662](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925164854662.png)
+
+值得注意的是，段选择符的RPL是软件控制的，举个例子，CPL为3的应用程序可以设置数据段选择符的RPL为0，从而绕过RPL检查，只需要检查CPL。
+
+#### Accessing Stack Segments
+
+加载入SS寄存器中的选择符RPL和段描述符DPL必须和当前CPL保持一致。如果RPL和DPL与当前的CPL不一致，则触发general-protection 异常。
+
+#### Transfer between Code Segments
+
+程序的转移可以通过以下指令实现：
+
+JMP、CALL、RET、SYSENTER、SYSEXIT、SYSCALL、SYSRET，INT n和IRET指令，以及异常和中断。
+
+JMP和CALL指令可以通过以下四种方式实现代码段的切换：
+
+* 操作数为指向目标代码段的选择符
+* 操作数为指向调用门的选择符，调用门描述符中包含指向目标代码段的选择符。
+* 操作数为指向TSS的选择符，TSS中包含指向目标代码段的选择符。
+* 操作数为指向任务门的选择符，任务门中包含指向TSS的选择符，TSS中包含指向目标代码段的选择符。
+
+##### Direct calls or jumps to Code Segment
+
+![image-20210925193534192](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925193534192.png)
+
+* CPL：调用程序的CPL
+* DPL：目标代码段的DPL
+* RPL：指向目标代码段的选择符的RPL
+* C flag：目标代码段描述符的C位，表示该段是一致性代码段还是非遗执行代码段。
+
+1. 访问非一致性代码段（C=0）
+
+   CPL必须等于DPL，RPL数值像小于等于CPL（可以看作DPL）。
+
+2. 访问一致性代码段
+
+   CPL数值上大于等于DPL，RPL不用检查。转移后CPL不发生变化。
+
+##### Call Gates
+
+调用门描述符可以放在GDT或LDT中，不能放在IDT中。
+
+![image-20210925194544771](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925194544771.png)
+
+* Segment Selector：指向目标代码段
+* Offset：目标代码段的入口点
+* P：调用门是否有效
+* Param Count：参数个数，当堆栈发生切换，表示需要从调用者堆栈复制到被调用者堆栈的参数个数。
+
+![image-20210925195215964](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925195215964.png)
+
+由于调用门中包含代码段偏移量，因此jmp和call中的代码偏移量是不被使用的，但要给出一个值，随便设置即可。
+
+调用门的特权级检查需要用到下面五个值：
+
+![image-20210925195601715](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925195601715.png)
+
+* CPL
+* 指向调用门的选择符的RPL
+* 调用门描述符中的DPL
+* 目标代码段的DPL
+* 目标代码段的C flag
+
+call和jmp规则稍有不同，jmp跳转不能更改特权级，call跳转可以更改特权级（当跳转到非一致性高特权级代码段时），特权级检查规则如下：
+
+![image-20210925195622406](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925195622406.png)
+
+### Stack Switching
+
+当特权级发生变换时，如通过call调用门到非一致性高特权级代码段，会发生栈切换，因为不同的特权级具有不同的堆栈，防止因为栈空间不足而崩溃，以及特权级隔离。
+
+1. Uses the DPL of the destination code segment (the new CPL) to select a pointer to the new stack (segment selector and stack pointer) from the TSS. 
+
+2. Reads the segment selector and stack pointer for the stack to be switched to from the current TSS. Any limit violations detected while reading the stack-segment selector, stack pointer, or stack-segment descriptor cause an invalid TSS (#TS) exception to be generated.
+
+3. Checks the stack-segment descriptor for the proper privileges and type and generates an invalid TSS (#TS) exception if violations are detected.
+
+4. Temporarily saves the current values of the SS and ESP registers.
+
+5. Loads the segment selector and stack pointer for the new stack in the SS and ESP registers.
+
+6. Pushes the temporarily saved values for the SS and ESP registers (for the calling procedure) onto the new stack (see Figure 5-13).
+
+7. Copies the number of parameter specified in the parameter count field of the call gate from the calling procedure’s stack to the new stack. If the count is 0, no parameters are copied.
+
+8. Pushes the return instruction pointer (the current contents of the CS and EIP registers) onto the new stack.
+
+9. Loads the segment selector for the new code segment and the new instruction pointer from the call gate into the CS and EIP registers, respectively, and begins execution of the called procedure.
+
+![image-20210925202340675](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925202340675.png)
+
+当从高特权级retf返回低特权级时，执行以下操作
+
+1. Checks the RPL field of the saved CS register value to determine if a privilege level change is required on the return.
+
+2. Loads the CS and EIP registers with the values on the called procedure’s stack. (Type and privilege level checks are performed on the code-segment descriptor and RPL of the code- segment selector.)
+
+3. (If the RET instruction includes a parameter count operand and the return requires a privilege level change.) Adds the parameter count (**in bytes obtained from the RET instruction**) to the current ESP register value (after popping the CS and EIP values), to step past the parameters on the called procedure’s stack. The resulting value in the ESP register points to the saved SS and ESP values for the calling procedure’s stack. (Note that the byte count in the RET instruction must be chosen to match the parameter count in the call gate that the calling procedure referenced when it made the original call multiplied by the size of the parameters.)
+
+4. (If the return requires a privilege level change.) Loads the SS and ESP registers with the saved SS and ESP values and switches back to the calling procedure’s stack. **The SS and ESP values for the called procedure’s stack are discarded**. Any limit violations detected while loading the stack-segment selector or stack pointer cause a general-protection exception (#GP) to be generated. The new stack-segment descriptor is also checked for type and privilege violations.
+
+5. (If the RET instruction includes a parameter count operand.) Adds the parameter count (in bytes obtained from the RET instruction) to the current ESP register value, to step past the parameters on the calling procedure’s stack. The resulting ESP value is not checked against the limit of the stack segment. If the ESP value is beyond the limit, that fact is not recognized until the next stack operation.
+
+6. (If the return requires a privilege level change.) Checks the contents of the DS, ES, FS, and GS segment registers. If any of these registers refer to segments whose DPL is less than the new CPL (excluding conforming code segments), the segment register is loaded with a null segment selector.
+
+### Page-Level Protection
+
+处理器执行两种页面级别的保护
+
+* Restriction of addressable domain (supervisor and user modes).
+
+  当CPL为0，1和2时，我们称代码运行在supervisor mode，如果为3，则运行在user mode。当处理器在supervisor mode下工作时，可以访问所有的页，当在user mode下工作室，只能访问用户级别的页。
+
+* Page type (read only or read/write).
+
+  当处理器在S模式下，且CR0的WP位为0，所有的页均为可读写。当处理器在U模式下，只能写入用户级别的可读写的页。当WP为1，只读页不可以被任何特权级下的代码写入。
+
+任何违反了以上两种保护的操作都会触发page-fault异常。
+
+## Interrupt And Exception Handling
 
 
 
