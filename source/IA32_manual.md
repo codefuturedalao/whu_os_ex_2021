@@ -34,6 +34,7 @@ EFLAGS寄存器控制着IO、可屏蔽硬件中断、任务切换和虚拟8086�
 * IF：Interrupt enable(bit 9)，控制处理器对可屏蔽中断的响应，如果为1，则表示处理器响应可屏蔽中断，为0表示禁止可屏蔽中断。**IF位不影响异常和不可屏蔽中断。**CPL、IOPL和CR4中的VME位决定IF位是否能被CLI，STI，POPF，POPFD和IRET指令修改。
 * IOPL：I/O privilege level field(bits 12 and 13)表示当前运行程序的IO特权级，当前运行程序的CPL必须数值上小于或等于IOPL值才可以访问IO地址空间，只有当CPL为0时，才可以通过POPF和IRET指令修改IOPL位。
 * NT：Nested task(bit 14)，控制被中断和被调用任务，当通过call指令、异常或中断进入任务时，处理器置该位为1。当IRET从任务中返回时会检查和修改该位。
+* RF：Resume(bit 16)，控制处理器对程序断点的响应，为1时，屏蔽指令断点产生debug异常；为0时，允许指令断点产生debug异常。RF的主要功能是防止处理器进入debug异常死循环。
 * VM：Virtual-8086 mode(bit 17)，置为表示进入虚拟8086模式，清除表示返回保护模式。
 * ID：Identification(bit21)，表示是否支持CPUID指令。
 
@@ -171,9 +172,15 @@ IA-32中的内存管理机制被分为两部分：分段和分页。**在保护�
 
     * 中断门
 
+      ![image-20210926153813439](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926153813439.png)
+
     * 陷阱门
 
+      ![image-20210926153802998](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926153802998.png)
+
     * 任务门
+
+      ![image-20210926153754277](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926153754277.png)
 
   ![image-20210921152527514](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210921152527514.png)
 
@@ -392,7 +399,135 @@ call和jmp规则稍有不同，jmp跳转不能更改特权级，call跳转可以
 
 ## Interrupt And Exception Handling
 
+当检测到中断或异常时，当前执行程序或任务会被挂起，处理器转去执行中断或异常处理程序，当处理程序执行完毕，处理器会恢复被中断程序或任务的执行。
 
+x86架构对中断和异常进行了区分，中断和异常的区别在于中断是异步事件，异常是同步事件。
+
+### Exception and interrupt vectors
+
+为了更方便地处理异常和中断，处理器为一些中断异常事件分配了一个专门的数字，称为向量号（vector number），处理器使用向量号作为IDT表的索引，获取中断或异常处理程序的入口点。
+
+向量号的范围是0~255，通常0~31被intel所保留，用于架构预先定义的异常和中断，但并不是所有的向量号都已经被分配，有些在0~31范围内的向量号还未分配给特定的异常和中断，请不要使用这些未分配的向量号，因为未来的某一天intel可能就会用到。
+
+![image-20210926110540837](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926110540837.png)
+
+![image-20210926110558347](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926110558347.png)
+
+而32~255范围内的向量号用于分配给用户自定义的中断，这些中断的来源可能是外部I/O设备等。
+
+### Sources of interrupts
+
+中断的来源分为以下两种
+
+* 外部中断
+* 软件生成的中断
+
+#### External Interrupts
+
+外部中断由处理器的引脚或本地APIC设备获取
+
+External interrupts are received through pins on the processor or through the local APIC. The primary interrupt pins on Pentium 4, Intel Xeon, P6 family, and Pentium processors are the LINT[1:0] pins, which are connected to the local APIC. When the local APIC is enabled, the LINT[1:0] pins can be programmed through the APIC’s local vector table (LVT) to be associated with any of the processor’s exception or interrupt vectors.
+
+When the local APIC is global/hardware disabled, these pins are configured as INTR and NMI pins, respectively. Asserting the INTR pin signals the processor that an external interrupt has occurred. The processor reads from the system bus the interrupt vector number provided by an external interrupt controller, such as an 8259A (see Section 6.2, “Exception and Interrupt Vectors”). Asserting the NMI pin signals a non-maskable interrupt (NMI), which is assigned to interrupt vector 2.
+
+#### Software-Generated Interrupts
+
+```Int n```指令允许软件触发中断，比如，```Int 35```可以隐式地调用35号中断的处理器程序。0~255号中断都可以通过该指令触发，但是当触发NMI中断时，处理器的行为和当NMI从外部触发时的行为不一致，会调用对应的中断处理程序，但不会执行相应的硬件操作。
+
+软件触发的中断不能被IF位所屏蔽。
+
+###  Exceptions
+
+异常的来源有以下几种：
+
+* 处理器检测到程序的错误导致的异常
+
+  比如除0
+
+* 软件触发的异常
+
+  ```INTO```,```INT1```,```INT3```和```BOUND```指令用来触发软件异常
+
+* 机器检查的异常（Machine-Check exceptions）
+
+  P6和奔腾处理器提供了机器检查机制来检查内部芯片硬件和总线事务，当出现错误时，处理器会产生机器检查一场（vector 18）
+
+异常的分类：
+
+* Faults：处理后重新执行异常指令
+* Traps：处理后执行异常指令下一条指令
+* Aborts：不需要精确报告异常指令的位置，也不允许重新执行导致异常的程序或任务。
+
+### Enable and Disable Interrupts
+
+处理器根据处理器状态、IF和RF位来屏蔽一些中断的产生。
+
+#### Masking Maskable Hardware interrupt
+
+当处理器IF位为0，INTR引脚接受的中断都会被屏蔽掉。IF为不影响不可屏蔽中断（NMI）和异常。
+
+当CPL数值上小于IOPL时，才能使用STI/CLI指令设置或清楚IF位，否则会产生异常。
+
+#### Masking Instruction Breakpoints
+
+RF为1屏蔽指令断点触发的debug异常。
+
+#### Masking Exceptions and interrupts when switching stacks
+
+当MOV或POP指令修改了SS寄存器的值时，在下一条指令执行时屏蔽指令断点触发的debug异常和单步陷阱异常。
+
+Intel推荐使用```LSS```指令同时加载SS和ESP寄存器。
+
+### Prioritization of concurrent events
+
+![image-20210926151630260](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926151630260.png)
+
+![image-20210926151638694](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926151638694.png)
+
+处理器先处理高特权级事件，此时低特权级异常会被抛弃，低特权级终端仍然挂起等待处理。
+
+### IDT
+
+和GDT、LDT一样，IDT也是8字节描述符的数组，将每个中断或异常和一个门描述符联系起来。但和GDT不一样的是，IDT第一个表项是可用的描述符。
+
+由于只有256个中断或异常向量，因此IDT只需要容纳256个描述符即可，也可以少于256个。
+
+IDT包含以下三种门
+
+![image-20210926153738446](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926153738446.png)
+
+* 任务门
+
+* 中断门
+
+  清除TF位和IF位
+
+* 陷阱门
+
+  清除TF位，不清除IF位
+
+中断门陷阱门和调用门非常类似，其中包含了目标代码段的选择符和偏移量。
+
+![image-20210926154235838](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926154235838.png)
+
+当处理器调用中断或异常处理程序时，执行以下操作：
+
+* 如果目标代码段特权级更高，发生栈切换
+
+  从TSS获取对应堆栈的选择符和栈指针，在新栈中压入SS、ESP、EFLAGS、CS和EIP的值，如果该异常存在错误码（error code），最后压入Error Code。
+
+* 如果目标代码段特权级和当前特权级一致，
+
+  向堆栈中依次压入EFLAGS、CS、EIP和Error Code（如果有的话）
+
+![image-20210926154657932](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926154657932.png)
+
+### Privilege Checking
+
+中断或异常门的特权级检查和直接通过call指令访问调用门类似，除了以下两点：
+
+1. 中断和异常向量没有RPL，因此不用检查RPL
+2. 当通过```INT n```，```INT3```或```INTO```等指令产生软件中断或异常时，需要检查门描述符的DPL，需要确保DPL数值上大于等于CPL，防止低特权级程序通过这些指令访问高特权级代码。对于硬件产生的中断和处理器检测到的异常，DPL不用被检查。
 
 ## Reference
 
