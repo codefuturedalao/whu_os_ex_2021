@@ -162,26 +162,29 @@ IA-32中的内存管理机制被分为两部分：分段和分页。**在保护�
     ![image-20210925154638553](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925154638553.png)
 
     * LDT段描述符
-    * TSS描述符
-
-  * 门描述符（包含指向代码段或TSS的选择符）
-
-    * 调用门
-
-      ![image-20210925194355975](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925194355975.png)
-
-    * 中断门
-
-      ![image-20210926153813439](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926153813439.png)
-
-    * 陷阱门
-
-      ![image-20210926153802998](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926153802998.png)
-
-    * 任务门
-
+  
+  * TSS描述符
+  
+    ![image-20211001105448440](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211001105448440.png)
+  
+* 门描述符（包含指向代码段或TSS的选择符）
+  
+  * 调用门
+  
+    ![image-20210925194355975](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210925194355975.png)
+  
+  * 中断门
+  
+    ![image-20210926153813439](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926153813439.png)
+  
+  * 陷阱门
+  
+    ![image-20210926153802998](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926153802998.png)
+  
+  * 任务门
+  
       ![image-20210926153754277](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210926153754277.png)
-
+  
   ![image-20210921152527514](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210921152527514.png)
 
 ### Paging
@@ -527,8 +530,121 @@ IDT包含以下三种门
 中断或异常门的特权级检查和直接通过call指令访问调用门类似，除了以下两点：
 
 1. 中断和异常向量没有RPL，因此不用检查RPL
-2. 当通过```INT n```，```INT3```或```INTO```等指令产生软件中断或异常时，需要检查门描述符的DPL，需要确保DPL数值上大于等于CPL，防止低特权级程序通过这些指令访问高特权级代码。对于硬件产生的中断和处理器检测到的异常，DPL不用被检查。
+2. 当通过```INT n```，```INT3```或```INTO```等指令产生软件中断或异常时，需要检查门描述符的DPL，需要确保DPL数值上大于等于CPL，防止低特权级程序通过这些指令访问高特权级代码。对于硬件产生的中断和处理器检测到的异常，门描述符的DPL不用被检查。
+
+## Task Management
+
+### Overview
+
+任务是处理器可以分派、执行和挂起的工作单位
+
+任务由两部分组成：
+
+* 任务执行空间：代码段、栈段和数据段
+* 任务状态段（TSS）
+
+![image-20211001102031293](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211001102031293.png)
+
+### Executing a Task
+
+Software or the processor can dispatch a task for execution in one of the following ways:
+
+* A explicit call to a task with the CALL instruction.（task gate or tss）
+* A explicit jump to a task with the JMP instruction.（task gate or tss）
+* An implicit call (by the processor) to an interrupt-handler or exception-handler task.（task gate）
+* A return (initiated with an IRET instruction) when the NT flag in the EFLAGS register is set.
+
+### Task management data structure
+
+处理器根据五项数据结构来处理和任务有关的活动
+
+在保护模式下，对于一个任务来说，TSS和TSS descriptor是必要的，且指向TSS descriptor的选择符需要加载到TR寄存器中。
+
+#### Task-state segment
+
+![image-20211001103053778](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211001103053778.png)
+
+TSS的域被分为两个主要的部分：
+
+* dynamic field：任务切换时进行更新
+  * 通用寄存器
+  * 段选择符
+  * EFLAGS
+  * EIP
+  * Previous Task Link
+* static field：任务切换时不进行更新，在任务创建时设置
+  * LDT segment selector field
+  * CR3
+  * 不同特权级的堆栈
+  * T flag
+  * IO 位图
+  * SSP
+
+#### TSS descriptor
+
+![image-20211001105634078](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211001105634078.png)
+
+**TSS描述符只能放在GDT中，不能放在LDT或IDT中**
+
+当G=0，段界限必须等于或大于0x67（比TSS最小长度少1），访问一个段界限小于0x67的TSS会触发无效TSS异常。
+
+任何CPL数值上小于等于DPL的程序可以通过call或jump分配任务，RPL不检查。
+
+#### Task register
+
+保存TSS的段选择符，分为两部分
+
+* 可见部分：TSS段选择符
+* 不可见部分：TSS段描述符
+
+![image-20211001110149991](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211001110149991.png)
+
+#### Task-gate descriptor
+
+![image-20211001110233051](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211001110233051.png)
+
+可以被放置在GDT、LDT或IDT中，其中的TSS段选择符指向一个GDT中的TSS描述符。
+
+当call或jump指令操作数为任务门描述符时，CPL和任务门选择符的RPL需要数值上都小于等于任务门的DPL，TSS的DPL不检查。
+
+![image-20211001111240074](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211001111240074.png)
+
+#### NT flag in EFLAGS register
+
+### Task Switching
+
+The processor performs the following operations when switching to a new task:
+
+1. Obtains the TSS segment selector for the new task as the operand of the JMP or CALL instruction, from a task gate, or from the previous task link field (for a task switch initiated with an IRET instruction).
+
+2. Checks that the current (old) task is allowed to switch to the new task. Data-access privilege rules apply to JMP and CALL instructions. The CPL of the current (old) task and the RPL of the segment selector for the new task must be less than or equal to the DPL of the TSS descriptor or task gate being referenced. Exceptions, interrupts (except for those identified in the next sentence), and the IRET and INT1 instructions are permitted to switch tasks regardless of the DPL of the destination task-gate or TSS descriptor. For interrupts generated by the INT *n*, INT3, and INTO instructions, the DPL is checked and a general-protection exception (#GP) results if it is less than the CPL.1
+
+3. Checks that the TSS descriptor of the new task is marked present and has a valid limit (greater than or equal to 67H). If the task switch was initiated by IRET and shadow stacks are enabled at the current CPL, then the SSP must be aligned to 8 bytes, else a #TS(current task TSS) fault is generated. If CR4.CET is 1, then the TSS must be a 32 bit TSS and the limit of the new task’s TSS must be greater than or equal to 107 bytes, else a #TS(new task TSS) fault is generated.
+
+4. Checks that the new task is available (call, jump, exception, or interrupt) or busy (IRET return).
+
+5. Checks that the current (old) TSS, new TSS, and all segment descriptors used in the task switch are paged into system memory.
+
+6. Saves the state of the current (old) task in the current task’s TSS. The processor finds the base address of the current TSS in the task register and then copies the states of the following registers into the current TSS: all the general-purpose registers, segment selectors from the segment registers, the temporarily saved image of the EFLAGS register, and the instruction pointer register (EIP).
+
+7. Loads the task register with the segment selector and descriptor for the new task's TSS.
+8. The TSS state is loaded into the processor. This includes the LDTR register, the PDBR (control register CR3), the EFLAGS register, the EIP register, the general-purpose registers, and the segment selectors. A fault during the load of this state may corrupt architectural state. (If paging is not enabled, a PDBR value is read from the new task's TSS, but it is not loaded into CR3.)
+9. If the task switch was initiated with a JMP or IRET instruction, the processor clears the busy (B) flag in the current (old) task’s TSS descriptor; if initiated with a CALL instruction, an exception, or an interrupt: the busy (B) flag is left set. (See Table 7-2.)
+10. If the task switch was initiated with an IRET instruction, the processor clears the NT flag in a temporarily saved image of the EFLAGS register; if initiated with a CALL or JMP instruction, an exception, or an interrupt, the NT flag is left unchanged in the saved EFLAGS image.
+11. If the task switch was initiated with a CALL instruction, an exception, or an interrupt, the processor will set the NT flag in the EFLAGS loaded from the new task. If initiated with an IRET instruction or JMP instruction, the NT flag will reflect the state of NT in the EFLAGS loaded from the new task (see Table 7-2).
+12. If the task switch was initiated with a CALL instruction, JMP instruction, an exception, or an interrupt, the processor sets the busy (B) flag in the new task’s TSS descriptor; if initiated with an IRET instruction, the busy (B) flag is left set.
+13. The descriptors associated with the segment selectors are loaded and qualified. Any errors associated with this loading and qualification occur in the context of the new task and may corrupt architectural state.
+14.  Begins executing the new task. (To an exception handler, the first instruction of the new task appears not to have been executed.)
+
+### Task Linking
+
+call指令，中断和异常导致的任务切换，处理器会设置新任务的NT位以及TSS的previous task link位。
+
+jmp指令导致的任务切换，previous task link域不修改
+
+![image-20211001113735018](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211001113735018.png)
 
 ## Reference
 
 Intel® 64 and IA-32 Architectures Software Developer’s Manual Volume 3 (3A, 3B, 3C & 3D): System Programming Guide
+
