@@ -38,7 +38,7 @@
 
    ![image-20210917150137783](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210917150137783.png)
 
-   格式化操作相当于将其转化为FAT32文件系统，当我们到terminal查看pm.img内容时，可以看到pm.img中已经写入了一些文件系统相关的东西，不再是那个全为0的它了。
+   格式化操作相当于将其转化为FAT16文件系统，当我们到terminal查看pm.img内容时，可以看到pm.img中已经写入了一些文件系统相关的东西，不再是那个全为0的它了。
 
    ![image-20210917150538255](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20210917150538255.png)
 
