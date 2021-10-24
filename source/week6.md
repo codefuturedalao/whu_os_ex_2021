@@ -30,11 +30,69 @@
 
 ## 实验步骤
 
+### 启动显示ASCII图案
+
+1. 通过neofetch或figlet工具获取图案（什么图案都可以）
+
+   ![image-20211024100021459](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024100021459.png)
+
+2. 在kernel/start.c中编写函数，显示图案
+
+   ![image-20211024100125866](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024100125866.png)
+
+3. 在kernel/kernel.asm中extern声明printBootLogo函数，同时在合适的位置调用（需要修改disp_str函数实现超出屏幕范围翻页的功能）
+
+   ![image-20211024100256029](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024100256029.png)
+
+### 中断函数集成
+
+以实现的键盘中断为例
+
+1. 修改代码，使kernel进入死循环（不然hlt被中断唤醒后会继续执行hlt后面的指令，导致出现错误）
+
+   ![image-20211024100817477](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024100817477.png)
+
+2. 修改hwint01函数，改成自己的中断处理代码
+
+   ![image-20211024100854184](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024100854184.png)
+
+3. 测试程序，每次按键盘，发现颜色变化
+
+   ![image-20211024101142507](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024101142507.png)
+
+### 内存管理集成
+
+为了简单展示修改Makefile，我们将创建mm文件夹，将前面内存管理的函数放入该文件夹的pageManage.asm文件中
+
+1. 将代码拷贝进入pageManage.asm中，注意声明标号以及添加所需要的数据结构
+
+   ![image-20211024101341949](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024101341949.png)
+
+   需要注意的是，对数据的引用无需使用```xxx equ _xxx - $$```，直接使用```_xxx```即可，请思考为什么。
+
+2. 在kernel/kernel.asm中添加测试函数并调用，被测试函数记得extern声明。
+
+   ![image-20211024102148285](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024102148285.png)
+
+3. 修改Makefile，在OBJS中添加```mm/pageManage.o```，在文件末尾添加对该文件的汇编命令
+
+   ![image-20211024101730081](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024101730081.png)
+
+4. 测试程序，由于之前验证过其正确性，因此正常显示输出即可判定其工作正常。
+
+   ![image-20211024102119780](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024102119780.png)
+
+   在断点处分别查看页表的映射情况，alloc_pages和free_pages也正常工作
+
+   ![image-20211024102329706](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024102329706.png)
+
 ## FAQ
 
 ### Q: 出现undefined reference to `__stack_chk_fail`错误，如何解决？
 
 需要在 `Makefile` 中的 `$(CFLAGS)` 后面加上 `-fno-stack-protector`，即不需要栈保护
+
+![image-20211024102407702](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211024102407702.png)
 
 ### Q：出现xxx is incompatible with i386:x86-64 output
 
