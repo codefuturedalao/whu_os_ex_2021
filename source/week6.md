@@ -98,9 +98,25 @@
 
 有些同学的Ubuntu系统是64位，而不是32位，那么gcc默认编译的目标文件是64位，无法和32位汇编文件汇编出的目标文件进行链接，需要在Makefile的CFLAGS后面添加```-m32```，LDFLAGS后面添加```-m elf_i386 ```
 
-### Q：如何方便的在标号声明处和定义处进行跳转。
+### Q：如何方便的在标号声明处和定义处进行跳转？
 
 由于建立了文件目录，浏览代码时不容易查找标号对应的定义，对于使用vim的同学，推荐使用ctags工具，方便标号声明和定义的跳转，对于仍在使用自带编辑器的同学，可以尝试vscode。
+
+### Q：myprint不好用，如何使用printf打印输出？
+
+我们采用动态链接的方法将libc.so和程序链接起来。下面操作环境为Ubuntu14.04，gcc 4.8.4
+
+首先包含<stdio.h>头文件
+
+![image-20211030090059779](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211030090059779.png)
+
+修改Makefile，在链接参数中添加```--dynamic-linker /lib/ld-linux.so.2 -lc```
+
+![image-20211030090138171](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211030090138171.png)
+
+make后运行，可以看到正常打印
+
+![image-20211030090318628](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211030090318628.png)
 
 ```{admonition} 提示
 
