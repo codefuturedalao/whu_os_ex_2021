@@ -25,7 +25,7 @@
 
 给出一个简化版多级反馈队列实现，没有到达时间和任务所需时间片的概念。
 
-1. 头文件中添加响应数据结构，主要有三个队列和对应的时间片，有限级越高的时间片对应时间片越少。
+1. 头文件中添加响应数据结构，主要有三个队列和对应的时间片，队列用数组来实现，存储u32类型的pid，优先级越高的队列对应时间片越少。
 
    ![image-20211118201522411](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211118201522411.png)
 
@@ -33,11 +33,11 @@
 
    ![image-20211118201700353](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211118201700353.png)
 
-3. 加入A和B两个进程
+3. 最开始向高优先级队列中加入A和B两个进程
 
    ![image-20211118201721768](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211118201721768.png)
 
-4. 修改schedule，下面只给出部分代码，思路为寻找第一个不为-1的元素，找到后查看剩余时间片，如果大于0则进行调度，小于等于0则移到下一级队列中（通过数组元素移动）。
+4. 修改schedule，下面只给出部分代码，思路为寻找第一个不为-1的元素，找到后查看进程剩余时间片，如果大于0则进行调度，小于等于0则移到下一级队列中（通过数组元素移动）。
 
    ![image-20211118201821933](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211118201821933.png)
 
@@ -45,7 +45,7 @@
 
    ![image-20211118202726711](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211118202726711.png)
 
-6. 查看结果，发现A和B各自运行完5个时间片后，到达中优先级队列，A运行两个时间片后C到达进行抢占，C运行5个时间片后进入中优先级队列，A继续运行8个时间片，之后转入低优先级队列，B开始运行，然后C，循环往复。
+6. 查看结果，发现A和B各自运行完5个时间片后，进入中优先级队列，A运行两个时间片后C到达进行抢占，C运行5个时间片后进入中优先级队列，A继续运行8个时间片，之后转入低优先级队列，B开始运行，然后C，循环往复。
 
    ![image-20211118202753608](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211118202753608.png)
 
