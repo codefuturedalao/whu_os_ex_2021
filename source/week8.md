@@ -27,7 +27,7 @@
 
 1. 头文件中添加响应数据结构，主要有三个队列和对应的时间片，有限级越高的时间片对应时间片越少。
 
-   ![image-20211118201522411](C:/Users/98543/AppData/Roaming/Typora/typora-user-images/image-20211118201522411.png)
+   ![image-20211118201522411](https://sql-markdown-picture.oss-cn-beijing.aliyuncs.com/img/image-20211118201522411.png)
 
 2. 在kernel_main中初始化数据
 
